@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Dashboard - OpenClaw</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: white;
+      border-radius: 12px;
+      padding: 24px 32px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .card-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 8px;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .chart-container {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .chart-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #374151;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chart-canvas {
+      position: relative;
+      height: 300px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #9ca3af;
+      font-size: 16px;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 16px 24px;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      border-left: 4px solid #dc2626;
+    }
+
+    .time-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .time-btn {
+      background: #f3f4f6;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: #6b7280;
+      transition: all 0.2s;
+    }
+
+    .time-btn:hover {
+      background: #e5e7eb;
+    }
+
+    .time-btn.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+    }
+
+    .stats-table th {
+      text-align: left;
+      padding: 12px;
+      background: #f9fafb;
+      font-weight: 600;
+      font-size: 13px;
+      color: #6b7280;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .stats-table td {
+      padding: 12px;
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 14px;
+    }
+
+    .stats-table tr:hover {
+      background: #f9fafb;
+    }
+
+    .cost-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .cost-high {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .cost-medium {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .cost-low {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .refresh-btn {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.2s;
+      margin-left: auto;
+    }
+
+    .refresh-btn:hover {
+      background: #5568d3;
+      transform: scale(1.05);
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+    }
+
+    .last-updated {
+      font-size: 13px;
+      color: #9ca3af;
+    }
+
+    @media (max-width: 768px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-cards {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>💰 Financial Dashboard</h1>
+      <p class="subtitle">OpenClaw LLM & Azure Infrastructure Cost Tracking</p>
+      <div class="header-controls">
+        <div class="last-updated" id="lastUpdated">Loading...</div>
+        <button class="refresh-btn" onclick="loadAllData()">🔄 Refresh</button>
+      </div>
+    </header>
+
+    <div id="error-container"></div>
+
+    <div class="summary-cards" id="summaryCards">
+      <div class="loading">Loading summary data...</div>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-container">
+        <div class="chart-title">
+          Cost Timeline
+          <div class="time-controls">
+            <button class="time-btn active" onclick="updateTimeline('day')">Daily</button>
+            <button class="time-btn" onclick="updateTimeline('week')">Weekly</button>
+          </div>
+        </div>
+        <div class="chart-canvas">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Cost by Agent</div>
+        <div class="chart-canvas">
+          <canvas id="agentChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Cost by Model</div>
+        <div class="chart-canvas">
+          <canvas id="modelChart"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">LLM vs Azure Costs</div>
+        <div class="chart-canvas">
+          <canvas id="sourceChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <div class="chart-title">Top Tasks by Cost</div>
+      <table class="stats-table" id="taskTable">
+        <thead>
+          <tr>
+            <th>Task Label</th>
+            <th>Sessions</th>
+            <th>Total Cost</th>
+          </tr>
+        </thead>
+        <tbody id="taskTableBody">
+          <tr><td colspan="3" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chart-container" style="margin-top: 24px;">
+      <div class="chart-title">Azure Services</div>
+      <table class="stats-table" id="azureTable">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Resource Group</th>
+            <th>Cost</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+        <tbody id="azureTableBody">
+          <tr><td colspan="4" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    const AUTH_TOKEN = 'justbecause';
+    
+    let charts = {};
+    let currentTimelinePeriod = 'day';
+
+    // Fetch with auth
+    async function apiFetch(endpoint) {
+      const response = await fetch(`${API_BASE}/api${endpoint}`, {
+        headers: { 'x-auth-token': AUTH_TOKEN }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    }
+
+    // Format currency
+    function formatCurrency(value) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value);
+    }
+
+    // Cost badge helper
+    function getCostBadge(cost) {
+      if (cost > 10) return 'cost-high';
+      if (cost > 1) return 'cost-medium';
+      return 'cost-low';
+    }
+
+    // Load summary cards
+    async function loadSummary() {
+      try {
+        const data = await apiFetch('/costs/summary');
+        
+        const html = `
+          <div class="card">
+            <div class="card-title">Total Spent</div>
+            <div class="card-value">${formatCurrency(data.combined.total)}</div>
+            <div class="card-subtitle">${data.llm.sessions.toLocaleString()} LLM sessions</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Today</div>
+            <div class="card-value">${formatCurrency(data.combined.today)}</div>
+            <div class="card-subtitle">LLM: ${formatCurrency(data.llm.today)} | Azure: ${formatCurrency(data.azure.today)}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">This Week</div>
+            <div class="card-value">${formatCurrency(data.combined.week)}</div>
+            <div class="card-subtitle">LLM: ${formatCurrency(data.llm.week)} | Azure: ${formatCurrency(data.azure.week)}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">This Month</div>
+            <div class="card-value">${formatCurrency(data.combined.month)}</div>
+            <div class="card-subtitle">LLM: ${formatCurrency(data.llm.month)} | Azure: ${formatCurrency(data.azure.month)}</div>
+          </div>
+          <div class="card">
+            <div class="card-title">LLM Total</div>
+            <div class="card-value">${formatCurrency(data.llm.total)}</div>
+            <div class="card-subtitle">${((data.llm.total / data.combined.total) * 100).toFixed(1)}% of total</div>
+          </div>
+          <div class="card">
+            <div class="card-title">Azure Total</div>
+            <div class="card-value">${formatCurrency(data.azure.total)}</div>
+            <div class="card-subtitle">${((data.azure.total / data.combined.total) * 100).toFixed(1)}% of total</div>
+          </div>
+        `;
+        
+        document.getElementById('summaryCards').innerHTML = html;
+      } catch (err) {
+        showError('Failed to load summary: ' + err.message);
+      }
+    }
+
+    // Load timeline chart
+    async function loadTimeline(period = 'day') {
+      try {
+        const data = await apiFetch(`/costs/timeline?period=${period}&limit=30`);
+        
+        if (charts.timeline) charts.timeline.destroy();
+        
+        const ctx = document.getElementById('timelineChart').getContext('2d');
+        charts.timeline = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: data.map(d => new Date(d.period)),
+            datasets: [{
+              label: 'Cost (USD)',
+              data: data.map(d => d.cost),
+              borderColor: '#667eea',
+              backgroundColor: 'rgba(102, 126, 234, 0.1)',
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => formatCurrency(context.parsed.y)
+                }
+              }
+            },
+            scales: {
+              x: {
+                type: 'time',
+                time: {
+                  unit: period === 'week' ? 'week' : 'day',
+                  displayFormats: {
+                    day: 'MMM d',
+                    week: 'MMM d'
+                  }
+                }
+              },
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => '$' + value.toFixed(2)
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        showError('Failed to load timeline: ' + err.message);
+      }
+    }
+
+    // Load agent chart
+    async function loadAgentChart() {
+      try {
+        const data = await apiFetch('/costs/by-agent');
+        const top10 = data.slice(0, 10);
+        
+        if (charts.agent) charts.agent.destroy();
+        
+        const ctx = document.getElementById('agentChart').getContext('2d');
+        charts.agent = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: top10.map(d => d.agent),
+            datasets: [{
+              label: 'Cost (USD)',
+              data: top10.map(d => d.cost),
+              backgroundColor: [
+                '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                '#43e97b', '#fa709a', '#fee140', '#30cfd0',
+                '#a8edea', '#fed6e3'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context) => formatCurrency(context.parsed.x) + ' (' + top10[context.dataIndex].sessions + ' sessions)'
+                }
+              }
+            },
+            scales: {
+              x: {
+                beginAtZero: true,
+                ticks: {
+                  callback: (value) => '$' + value.toFixed(2)
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        showError('Failed to load agent chart: ' + err.message);
+      }
+    }
+
+    // Load model chart
+    async function loadModelChart() {
+      try {
+        const data = await apiFetch('/costs/by-model');
+        
+        if (charts.model) charts.model.destroy();
+        
+        const ctx = document.getElementById('modelChart').getContext('2d');
+        charts.model = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: data.map(d => d.model.replace('anthropic/', '').replace('openai/', '')),
+            datasets: [{
+              data: data.map(d => d.cost),
+              backgroundColor: [
+                '#667eea', '#764ba2', '#f093fb', '#4facfe',
+                '#43e97b', '#fa709a', '#fee140', '#30cfd0'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const item = data[context.dataIndex];
+                    return `${context.label}: ${formatCurrency(item.cost)} (${item.usageCount} calls)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        showError('Failed to load model chart: ' + err.message);
+      }
+    }
+
+    // Load source chart (LLM vs Azure)
+    async function loadSourceChart() {
+      try {
+        const data = await apiFetch('/costs/summary');
+        
+        if (charts.source) charts.source.destroy();
+        
+        const ctx = document.getElementById('sourceChart').getContext('2d');
+        charts.source = new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: ['LLM Costs', 'Azure Costs'],
+            datasets: [{
+              data: [data.llm.total, data.azure.total],
+              backgroundColor: ['#667eea', '#764ba2']
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom'
+              },
+              tooltip: {
+                callbacks: {
+                  label: (context) => {
+                    const total = data.combined.total;
+                    const value = context.parsed;
+                    const percent = ((value / total) * 100).toFixed(1);
+                    return `${context.label}: ${formatCurrency(value)} (${percent}%)`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      } catch (err) {
+        showError('Failed to load source chart: ' + err.message);
+      }
+    }
+
+    // Load task table
+    async function loadTaskTable() {
+      try {
+        const data = await apiFetch('/costs/by-task');
+        
+        const html = data.slice(0, 20).map(item => `
+          <tr>
+            <td>${item.task}</td>
+            <td>${item.sessions}</td>
+            <td><span class="cost-badge ${getCostBadge(item.cost)}">${formatCurrency(item.cost)}</span></td>
+          </tr>
+        `).join('');
+        
+        document.getElementById('taskTableBody').innerHTML = html || '<tr><td colspan="3">No data</td></tr>';
+      } catch (err) {
+        showError('Failed to load task table: ' + err.message);
+      }
+    }
+
+    // Load Azure table
+    async function loadAzureTable() {
+      try {
+        const data = await apiFetch('/costs/azure');
+        
+        const html = data.map(item => `
+          <tr>
+            <td>${item.service}</td>
+            <td>${item.resourceGroup || 'N/A'}</td>
+            <td><span class="cost-badge ${getCostBadge(item.cost)}">${formatCurrency(item.cost)}</span></td>
+            <td>${item.lastUpdated ? new Date(item.lastUpdated).toLocaleDateString() : 'N/A'}</td>
+          </tr>
+        `).join('');
+        
+        document.getElementById('azureTableBody').innerHTML = html || '<tr><td colspan="4">No data</td></tr>';
+      } catch (err) {
+        showError('Failed to load Azure table: ' + err.message);
+      }
+    }
+
+    // Update timeline period
+    function updateTimeline(period) {
+      currentTimelinePeriod = period;
+      document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      loadTimeline(period);
+    }
+
+    // Show error
+    function showError(message) {
+      const container = document.getElementById('error-container');
+      container.innerHTML = `<div class="error">⚠️ ${message}</div>`;
+      setTimeout(() => container.innerHTML = '', 5000);
+    }
+
+    // Load all data
+    async function loadAllData() {
+      document.getElementById('lastUpdated').textContent = 'Refreshing...';
+      
+      await Promise.all([
+        loadSummary(),
+        loadTimeline(currentTimelinePeriod),
+        loadAgentChart(),
+        loadModelChart(),
+        loadSourceChart(),
+        loadTaskTable(),
+        loadAzureTable()
+      ]);
+      
+      document.getElementById('lastUpdated').textContent = 
+        'Last updated: ' + new Date().toLocaleTimeString();
+    }
+
+    // Initial load
+    loadAllData();
+
+    // Auto-refresh every 5 minutes
+    setInterval(loadAllData, 5 * 60 * 1000);
+  </script>
+</body>
+</html>
